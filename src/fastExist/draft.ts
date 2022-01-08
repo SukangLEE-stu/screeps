@@ -89,7 +89,7 @@ function spawnWork(){
         if(room.controller&&room.controller.my){
             if(room.memory.draftCreepNum<creepNum){
                 let spawn:StructureSpawn|null = Game.getObjectById(room.memory.draftSpawn);
-                if(spawn){
+                if(spawn && !spawn.spawning){
                     if(spawn.store[RESOURCE_ENERGY]>=250){
                         spawn.spawnCreep([MOVE,MOVE,CARRY,WORK],"worker"+Game.time,{
                             memory:{
