@@ -33,7 +33,11 @@ export function initRoomMemory(room:Room){
         if(room.controller && room.controller.my){
             room.memory.neededCreeps =constCreepNumber;
 
-            let tasks : spawnTask[] = initialCreepTask(room);;
+            let tasks : spawnTask[] = initialCreepTask(room);
+
+            room.memory.taskCenter = new TaskCenter(room.name,room.name+Game.time);
+
+            room.memory.taskCenter.spawnTasks = tasks;
 
             roomFresh(room);
 
@@ -73,7 +77,8 @@ function initialCreepTask(room:Room):spawnTask[]{
             role:"DRONE",
             room:room.name,
             createBeforeDeath:12,
-            working:false
+            working:false,
+            task:new getEnergyTask()
         }
     }
     for(let i = 0;i<need["drone"];++i){
@@ -91,7 +96,8 @@ function initialCreepTask(room:Room):spawnTask[]{
             role:"TRANSPORT",
             room:room.name,
             createBeforeDeath:12,
-            working:false
+            working:false,
+            task:new getEnergyTask()
         }
     }
 
@@ -109,7 +115,8 @@ function initialCreepTask(room:Room):spawnTask[]{
             role:"WORK",
             room:room.name,
             createBeforeDeath:15,
-            working:false
+            working:false,
+            task:new getEnergyTask()
         }
     }
 

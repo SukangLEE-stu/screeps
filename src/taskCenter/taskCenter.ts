@@ -2,8 +2,10 @@
  * 调度中心：基于Creeps名单的任务调度
  */
 class TaskCenter{
-    private harvestTasks:Task[];
-
+    public spawnTasks:spawnTask[];
+    private harvestTasks:harvestTask[];
+    private transportTasks:Task[];
+    private workerTasks:Task[];
     private roomName:string;
 
     private memoryKey:string;
@@ -12,6 +14,9 @@ class TaskCenter{
         this.roomName = name;
         this.memoryKey = key;
         this.harvestTasks = [];
+        this.transportTasks = [];
+        this.workerTasks = [];
+        this.spawnTasks = [];
     }
 }
 

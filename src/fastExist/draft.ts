@@ -97,7 +97,8 @@ function spawnWork(){
                                 room:room.name,
                                 createBeforeDeath:12,
                                 working:false,
-                                draftFull:false
+                                draftFull:false,
+                                task:new CreepTask()
                             }
                         });
                         room.memory.draftCreepNum +=1;

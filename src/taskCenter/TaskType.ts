@@ -4,5 +4,5 @@ enum TaskType{
     TRANSPORT,
     DRONE,
     BUILD,
-
+    UPGRADE
 }

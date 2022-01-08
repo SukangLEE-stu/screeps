@@ -25,6 +25,7 @@ declare global {
     room: string;
     createBeforeDeath:number;
     working: boolean;
+    task: CreepTask;
   }
 
   interface RoomMemory{
@@ -55,10 +56,11 @@ declare global {
 
   }
 
+  /*
   interface TaskCenter{
     spawnTasks:spawnTask[];
 
-  }
+  }*/
 
   interface spawnTask{
     name:string;

@@ -1,7 +1,9 @@
 
 class Task{
+    //id is only key
     private id:string;
-    private type:TaskType;
+
+    private taskType:TaskType;
     private priority:number;
 
     private needCreep:number;
@@ -10,6 +12,9 @@ class Task{
 
     //no need to continue
     private workDone:boolean;
+
+    //has creep doing this task
+    private working:boolean;
 
 
     /**
@@ -23,10 +28,15 @@ class Task{
      * allocateCreep
      */
     public allocateCreep(creep:Creep) :boolean {
-        if(!this.matchWork(creep,this.type)){
+        if(!Task.matchWork(creep,this.taskType)){
             return false;
         }
 
+        this.allocatedCreep += 1;
+        this.creepList[creep.name] = true;
+        /**
+         * need to add memory to creep?
+         */
         return true;
     }
 
@@ -42,8 +52,15 @@ class Task{
     /**
      * finished
      */
-    public finished():boolean {
-        return false;
+    public available():boolean {
+        return true;
+    }
+
+    /**
+     * work
+     */
+    public work(creep:Creep) :boolean {
+        return true;
     }
 
     /**
@@ -52,18 +69,18 @@ class Task{
      * @param type
      * @returns
      */
-    private matchWork(creep:Creep,type:TaskType):boolean{
+    private static matchWork(creep:Creep,type:TaskType):boolean{
         return true;
     }
 
-
     constructor(id:string,type:TaskType,priority:number,needCreep:number){
         this.id = id;
-        this.type = type;
+        this.taskType = type;
         this.priority = priority;
         this.needCreep = needCreep;
         this.allocatedCreep = 0;
         this.creepList = {};
         this.workDone = false;
+        this.working = false;
     }
 }
