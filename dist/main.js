@@ -2,6 +2,125 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
+function draftInit() {
+    for (const name in Game.rooms) {
+        let room = Game.rooms[name];
+        if (room.controller && room.controller.my) {
+            let spawns = room.find(FIND_MY_SPAWNS);
+            if (spawns.length) {
+                room.memory.draftSpawn = spawns[0].id;
+                room.memory.draftCreepNum = 0;
+            }
+        }
+    }
+}
+function draftLivingFunction() {
+    deleteNotExist();
+    creepWork();
+    spawnWork();
+    generatePixel();
+}
+function generatePixel() {
+    try {
+        if (Game.cpu.bucket == 10000) {
+            Game.cpu.generatePixel();
+        }
+    }
+    catch (e) {
+        //console.log(e);
+    }
+}
+function creepWork() {
+    for (const name in Memory.creeps) {
+        let creep = Game.creeps[name];
+        if (!creep.memory.draftFull && !creep.memory.working) {
+            if (!creep.memory.draftSource) {
+                let sources = creep.room.find(FIND_SOURCES);
+                if (sources.length) {
+                    creep.memory.draftSource = sources[Game.time % (sources.length)].id;
+                }
+            }
+            let id = creep.memory.draftSource;
+            if (id) {
+                let src = Game.getObjectById(id);
+                if (src) {
+                    harvest(creep, src);
+                }
+            }
+            if (creep.store.getFreeCapacity() == 0) {
+                creep.memory.draftFull = true;
+                creep.memory.working = true;
+            }
+        }
+        if (creep.memory.working) {
+            //assert creep.room.memory.draftSpawn;
+            let spawn = Game.getObjectById(creep.room.memory.draftSpawn);
+            if (spawn && spawn.store[RESOURCE_ENERGY] < 200) {
+                transport(creep, spawn);
+            }
+            else {
+                let controller = creep.room.controller;
+                if (controller) {
+                    upgrade(creep, controller);
+                }
+            }
+            if (creep.store[RESOURCE_ENERGY] == 0) {
+                creep.memory.working = false;
+                creep.memory.draftFull = false;
+            }
+        }
+    }
+}
+const creepNum = 5;
+function spawnWork() {
+    for (let name in Game.rooms) {
+        let room = Game.rooms[name];
+        if (room.controller && room.controller.my) {
+            if (room.memory.draftCreepNum < creepNum) {
+                let spawn = Game.getObjectById(room.memory.draftSpawn);
+                if (spawn) {
+                    if (spawn.store[RESOURCE_ENERGY] >= 250) {
+                        spawn.spawnCreep([MOVE, MOVE, CARRY, WORK], "worker" + Game.time, {
+                            memory: {
+                                role: "worker",
+                                room: room.name,
+                                createBeforeDeath: 12,
+                                working: false,
+                                draftFull: false
+                            }
+                        });
+                        room.memory.draftCreepNum += 1;
+                    }
+                }
+            }
+        }
+    }
+}
+function harvest(creep, source) {
+    if (creep.harvest(source) == ERR_NOT_IN_RANGE) {
+        creep.moveTo(source);
+    }
+}
+function transport(creep, spawn) {
+    if (creep.transfer(spawn, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+        creep.moveTo(spawn);
+    }
+}
+function upgrade(creep, controller) {
+    if (creep.upgradeController(controller) == ERR_NOT_IN_RANGE) {
+        creep.moveTo(controller);
+    }
+}
+function deleteNotExist() {
+    // Automatically delete memory of missing creeps
+    for (const name in Memory.creeps) {
+        if (!(name in Game.creeps)) {
+            Game.rooms[Memory.creeps[name].room].memory.draftCreepNum -= 1;
+            delete Memory.creeps[name];
+        }
+    }
+}
+
 var sourceMapGenerator = {};
 
 var base64Vlq = {};
@@ -3239,14 +3358,10 @@ ErrorMapper.cache = {};
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
+draftInit();
 const loop = ErrorMapper.wrapLoop(() => {
     console.log(`Current game tick is ${Game.time}`);
-    // Automatically delete memory of missing creeps
-    for (const name in Memory.creeps) {
-        if (!(name in Game.creeps)) {
-            delete Memory.creeps[name];
-        }
-    }
+    draftLivingFunction();
 });
 
 exports.loop = loop;
