@@ -2,7 +2,17 @@
  * 调度中心：基于Creeps名单的任务调度
  *
  * 更多想法：这个中心可以直接放在内存中，不用和特定房间绑定
+ *
+ * 实践：这个中心只能放到运行内存中，不能存储到memory中
  */
+
+import { CreepInfo } from "creepWork/CreepInfo";
+import { CreepRole } from "creepWork/CreepRole";
+import { CreepTask } from "creepWork/CreepTask";
+import { Task } from "./Task";
+import { spawnTask } from "./task/spawnTask";
+import { TransportMethod, transportTask } from "./task/transportTask";
+import { TaskType } from "./TaskType";
 
 
 class TaskCenter{
@@ -268,4 +278,4 @@ class TaskCenter{
 
 }
 
-
+export {TaskCenter};

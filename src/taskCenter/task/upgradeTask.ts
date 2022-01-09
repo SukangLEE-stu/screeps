@@ -1,5 +1,7 @@
+import { Task } from "taskCenter/Task";
+import { TaskType } from "taskCenter/TaskType";
 
-class upgradeTask extends Task{
+export class upgradeTask extends Task{
     private controllerId:string;
     //private sourceType:string;
     private amount:number;

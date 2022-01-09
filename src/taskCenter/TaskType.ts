@@ -1,5 +1,5 @@
 
-enum TaskType{
+export enum TaskType{
     HARVEST,
     TRANSPORT,
     DRONE,

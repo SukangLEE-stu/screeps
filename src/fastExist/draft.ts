@@ -1,4 +1,5 @@
 import { assert } from "console";
+import { CreepRole } from "creepWork/CreepRole";
 
 export function draftInit(){
     for(const name in Game.rooms){
@@ -23,7 +24,7 @@ export function draftLivingFunction(){
   generatePixel();
 }
 
-function generatePixel(){
+export function generatePixel(){
     try{
         if(Game.cpu.bucket == 10000) {
             Game.cpu.generatePixel();

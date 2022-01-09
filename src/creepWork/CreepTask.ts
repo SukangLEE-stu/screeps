@@ -1,5 +1,5 @@
 
-class CreepTask{
+export class CreepTask{
     //id is the only key
     public id:string;
 

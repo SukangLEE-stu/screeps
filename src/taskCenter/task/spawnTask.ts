@@ -1,5 +1,7 @@
+import { Task } from "taskCenter/Task";
+import { TaskType } from "taskCenter/TaskType";
 
-class spawnTask extends Task{
+export class spawnTask extends Task{
     public name:string;
     private body:BodyPartConstant[];
     private cost:number;

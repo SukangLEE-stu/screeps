@@ -1,6 +1,12 @@
 import { draftInit, draftLivingFunction } from "fastExist/draft";
+import { memoryInit } from "system/MemoryInit";
 import { Position } from "source-map";
 import { ErrorMapper } from "utils/ErrorMapper";
+import { myLoop } from "system/loop";
+import { TaskCenter } from "taskCenter/TaskCenter";
+import { CreepTask } from "creepWork/CreepTask";
+import { CreepRole } from "creepWork/CreepRole";
+import { storedSource } from "system/source/sources";
 
 declare global {
   /*
@@ -33,12 +39,10 @@ declare global {
     draftSpawn:string;
 
     initialed:boolean;
-    taskCenter:TaskCenter;
+    myInit:boolean;
+    //taskCenter:TaskCenter;
     neededCreeps:needCreepType;
-    sources:{
-      energy:SourceEnergyMemory[];
-      rareSource:RareEnergyMemory;//deposit
-    }
+    sources:storedSource;
     centers:centersMemory;
   }
 
@@ -56,6 +60,7 @@ declare global {
     signed:boolean;
   }
 
+
   /*
   interface TaskCenter{
     spawnTasks:spawnTask[];
@@ -63,41 +68,21 @@ declare global {
   }*/
 
 
-  interface SourceEnergyMemory{
-    pos:RoomPosition;
-    amount:number;
-
-    hasContainerFlag:boolean;
-    containerFlag?:Flag;
-    hasContainer:boolean;
-    containerId?:string;
-
-  }
-
-  interface RareEnergyMemory{
-    pos:RoomPosition;
-    //amount:number;
-    type:string;
-
-    hasContainerFlag:boolean;
-    containerFlag?:Flag;
-    hasContainer:boolean;
-    containerId?:string;
-
-  }
-
   // Syntax for adding proprties to `global` (ex "global.log")
   namespace NodeJS {
     interface Global {
       log: any;
+      center:{[name:string]:TaskCenter}
+
     }
   }
 }
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
-draftInit();
+memoryInit();
 export const loop = ErrorMapper.wrapLoop(() => {
-  console.log(`Current game tick is ${Game.time}`);
-  draftLivingFunction();
+  //console.log(`Current game tick is ${Game.time}`);
+  //draftLivingFunction();
+  myLoop();
 });

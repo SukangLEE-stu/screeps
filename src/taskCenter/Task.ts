@@ -1,5 +1,7 @@
+import { CreepInfo } from "creepWork/CreepInfo";
+import { TaskType } from "./TaskType";
 
-class Task{
+export class Task{
     //id is only key
     public id:string;
 

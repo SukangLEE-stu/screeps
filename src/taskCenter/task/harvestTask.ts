@@ -1,6 +1,8 @@
+import { Task } from "taskCenter/Task";
+import { TaskType } from "taskCenter/TaskType";
 
 
-class harvestTask extends Task{
+export class harvestTask extends Task{
     private sourceId:string;
     //private targetPos:RoomPosition;
 

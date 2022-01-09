@@ -1,5 +1,7 @@
+import { CreepTask } from "creepWork/CreepTask";
+import { TransportMethod } from "taskCenter/task/transportTask";
 
-class getEnergyTask extends CreepTask{
+export class getEnergyTask extends CreepTask{
     private sourceId:string;
     private method:TransportMethod;
 

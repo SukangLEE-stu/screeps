@@ -2,122 +2,588 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-function draftInit() {
-    for (const name in Game.rooms) {
-        let room = Game.rooms[name];
-        if (room.controller && room.controller.my) {
-            let spawns = room.find(FIND_MY_SPAWNS);
-            if (spawns.length) {
-                room.memory.draftSpawn = spawns[0].id;
-                room.memory.draftCreepNum = 0;
-            }
-        }
+var CreepRole;
+(function (CreepRole) {
+    CreepRole[CreepRole["DRONE"] = 0] = "DRONE";
+    CreepRole[CreepRole["TRANSPORT"] = 1] = "TRANSPORT";
+    CreepRole[CreepRole["WORK"] = 2] = "WORK";
+})(CreepRole || (CreepRole = {}));
+
+class Task {
+    constructor(id, type, priority, needCreep) {
+        this.id = id;
+        this.taskType = type;
+        this.priority = priority;
+        this.needCreep = needCreep;
+        this.allocatedCreep = 0;
+        this.creepDict = {};
+        this.workDone = false;
+        this.working = false;
+    }
+    /**
+     * needed
+     */
+    needed() {
+        return this.allocatedCreep < this.needCreep;
+    }
+    /**
+     * allocateCreep
+     */
+    allocateCreep(name, info) {
+        /*
+        if(!Task.matchWork(creep,this.taskType)){
+            return false;
+        }*/
+        this.allocatedCreep += 1;
+        this.creepDict[name] = info;
+        /**
+         * need to add memory to creep?
+         */
+        return true;
+    }
+    /**
+     * deleteCreep
+     */
+    deleteCreep(creepName) {
+        this.allocatedCreep -= 1;
+        delete this.creepDict[creepName];
+        return true;
+    }
+    /**
+     * finished
+     */
+    available() {
+        return true;
+    }
+    /**
+     * work
+     */
+    work(creep) {
+        return true;
+    }
+    /**
+     *
+     * @param creep
+     * @param type
+     * @returns
+     */
+    static matchWork(creep, type) {
+        return true;
     }
 }
-function draftLivingFunction() {
-    deleteNotExist();
-    creepWork();
-    spawnWork();
-    generatePixel();
-}
-function generatePixel() {
-    try {
-        if (Game.cpu.bucket == 10000) {
-            Game.cpu.generatePixel();
-        }
+
+class harvestTask extends Task {
+    //private targetPos:RoomPosition;
+    constructor(id, type, priority, needCreep, srcId) {
+        super(id, type, priority, needCreep);
+        this.sourceId = srcId;
+        //this.targetPos = pos;
     }
-    catch (e) {
-        //console.log(e);
-    }
-}
-function creepWork() {
-    for (const name in Memory.creeps) {
-        let creep = Game.creeps[name];
-        if (!creep.memory.draftFull && !creep.memory.working) {
-            if (!creep.memory.draftSource) {
-                let sources = creep.room.find(FIND_SOURCES);
-                if (sources.length) {
-                    creep.memory.draftSource = sources[Game.time % (sources.length)].id;
-                }
-            }
-            let id = creep.memory.draftSource;
-            if (id) {
-                let src = Game.getObjectById(id);
-                if (src) {
-                    harvest(creep, src);
-                }
-            }
-            if (creep.store.getFreeCapacity() == 0) {
-                creep.memory.draftFull = true;
-                creep.memory.working = true;
+    /**
+     * work
+     */
+    work(creep) {
+        let source = Game.getObjectById(this.sourceId);
+        if (source) {
+            if (creep.harvest(source) == ERR_NOT_IN_RANGE) {
+                creep.moveTo(source);
             }
         }
-        if (creep.memory.working) {
-            //assert creep.room.memory.draftSpawn;
-            let spawn = Game.getObjectById(creep.room.memory.draftSpawn);
-            if (spawn && spawn.store[RESOURCE_ENERGY] < 200) {
-                transport(creep, spawn);
+        return true;
+    }
+    available() {
+        return true;
+    }
+}
+
+class spawnTask extends Task {
+    constructor(id, type, priority, name, body, cost, mem, spawnId) {
+        super(id, type, priority, 0);
+        this.name = name;
+        this.body = body;
+        this.cost = cost;
+        this.creepMemory = mem;
+        this.spawnId = id;
+        this.processed = false;
+    }
+    spawnWork() {
+        let spawn = Game.getObjectById(this.spawnId);
+        if (!spawn) {
+            console.log("ERR, no spawn!");
+            try {
+                Game.notify("ERR, no spawn! In creating " + this.name + "!");
             }
-            else {
-                let controller = creep.room.controller;
-                if (controller) {
-                    upgrade(creep, controller);
+            catch (e) {
+                console.log(e);
+            }
+            return;
+        }
+        if (!spawn.spawning && spawn.store[RESOURCE_ENERGY] >= this.cost) {
+            spawn.spawnCreep(this.body, this.name, {
+                memory: this.creepMemory
+            });
+            this.processed = true;
+        }
+    }
+    available() {
+        return !this.processed;
+    }
+}
+
+class upgradeTask extends Task {
+    constructor(id, type, priority, needCreep, ctlId, amount) {
+        super(id, type, priority, needCreep);
+        this.controllerId = ctlId;
+        this.amount = amount;
+    }
+    /**
+     * available
+     */
+    available() {
+        return this.amount > 0;
+    }
+    /**
+     * work
+     */
+    work(creep) {
+        if (!creep.memory.working) {
+            //get energy
+            if (creep.memory.task)
+                creep.memory.task.work(creep);
+        }
+        else {
+            let ctl = Game.getObjectById(this.controllerId);
+            if (ctl) {
+                if (creep.upgradeController(ctl) == ERR_NOT_IN_RANGE) {
+                    creep.moveTo(ctl);
                 }
             }
             if (creep.store[RESOURCE_ENERGY] == 0) {
                 creep.memory.working = false;
-                creep.memory.draftFull = false;
+            }
+        }
+        return true;
+    }
+}
+
+class CreepInfo {
+    constructor(role) {
+        this.role = role;
+    }
+}
+
+class CreepTask {
+    constructor(id) {
+        this.id = id;
+    }
+    /**
+     * work
+     */
+    work(creep) {
+        return true;
+    }
+}
+
+/**
+ * 要考虑无法传输进去amount或者无法取出amount怎么办
+ */
+var TransportMethod;
+(function (TransportMethod) {
+    TransportMethod[TransportMethod["WITHDRAW"] = 0] = "WITHDRAW";
+    TransportMethod[TransportMethod["PICKUP"] = 1] = "PICKUP";
+    TransportMethod[TransportMethod["TRANSFER"] = 2] = "TRANSFER";
+})(TransportMethod || (TransportMethod = {}));
+class transportTask extends Task {
+    constructor(id, type, priority, needCreep, fromId, fromPos, fromMethod, tarID, tarPos, targetMetgod, srctype, amount) {
+        super(id, type, priority, needCreep);
+        this.fromId = fromId;
+        this.fromPos = fromPos;
+        this.fromMethod = fromMethod;
+        this.targetId = tarID;
+        this.targetPos = tarPos;
+        this.targetMethod = targetMetgod;
+        this.sourceType = srctype;
+        this.amount = amount;
+    }
+    /**
+     * available
+     */
+    available() {
+        return this.amount > 0;
+    }
+}
+
+var TaskType;
+(function (TaskType) {
+    TaskType[TaskType["HARVEST"] = 0] = "HARVEST";
+    TaskType[TaskType["TRANSPORT"] = 1] = "TRANSPORT";
+    TaskType[TaskType["DRONE"] = 2] = "DRONE";
+    TaskType[TaskType["BUILD"] = 3] = "BUILD";
+    TaskType[TaskType["UPGRADE"] = 4] = "UPGRADE";
+    TaskType[TaskType["SPAWN"] = 5] = "SPAWN";
+})(TaskType || (TaskType = {}));
+
+/**
+ * 调度中心：基于Creeps名单的任务调度
+ *
+ * 更多想法：这个中心可以直接放在内存中，不用和特定房间绑定
+ *
+ * 实践：这个中心只能放到运行内存中，不能存储到memory中
+ */
+class TaskCenter {
+    constructor(name, key) {
+        this.roomName = name;
+        this.memoryKey = key;
+        this.harvestTasks = [];
+        this.transportTasks = [];
+        this.workerTasks = [];
+        this.spawnTasks = [];
+        this.creepDict = {};
+    }
+    /**
+     * schedule
+     */
+    schedule() {
+        this.updateCreeps();
+        this.scheduleCreeps();
+        this.scheduleTasks();
+        this.signTasks();
+        //this.sortTasks();
+    }
+    /**
+     * addCreep(新出生的)
+     */
+    addCreep(creep) {
+        this.creepDict[creep.name] = new CreepInfo(creep.memory.role);
+        return true;
+    }
+    /**
+     * 更新去世的creep
+     */
+    updateCreeps() {
+        for (let name in this.creepDict) {
+            if (!Game.creeps[name]) {
+                this.unbind(name);
+                this.deleteCreep(name);
             }
         }
     }
-}
-const creepNum = 5;
-function spawnWork() {
-    for (let name in Game.rooms) {
-        let room = Game.rooms[name];
-        if (room.controller && room.controller.my) {
-            if (room.memory.draftCreepNum < creepNum) {
-                let spawn = Game.getObjectById(room.memory.draftSpawn);
-                if (spawn && !spawn.spawning) {
-                    if (spawn.store[RESOURCE_ENERGY] >= 250) {
-                        spawn.spawnCreep([MOVE, MOVE, CARRY, WORK], "worker" + Game.time, {
-                            memory: {
-                                role: CreepRole.WORK,
-                                room: room.name,
-                                createBeforeDeath: 12,
-                                working: false,
-                                draftFull: false
+    /**
+     * 分配任务给creep
+     */
+    scheduleCreeps() {
+        for (let name in this.creepDict) {
+            this.allocateCreep(name);
+        }
+    }
+    /**
+     * 基于任务的creep工作和任务完成的删除
+     */
+    scheduleTasks() {
+        for (let i = 0; i < this.spawnTasks.length;) {
+            if (!this.scheduleSpawnTask(this.spawnTasks[i])) {
+                //this.taskCallback(this.spawnTasks[i]);
+                this.workerTasks.splice(i, 1);
+                continue;
+            }
+            ++i;
+        }
+        for (let i = 0; i < this.harvestTasks.length;) {
+            if (!this.scheduleTask(this.harvestTasks[i])) {
+                this.taskCallback(this.harvestTasks[i]);
+                this.harvestTasks.splice(i, 1);
+                continue;
+            }
+            ++i;
+        }
+        for (let i = 0; i < this.transportTasks.length;) {
+            if (!this.scheduleTask(this.transportTasks[i])) {
+                this.taskCallback(this.transportTasks[i]);
+                this.transportTasks.splice(i, 1);
+                continue;
+            }
+            ++i;
+        }
+        for (let i = 0; i < this.workerTasks.length;) {
+            if (!this.scheduleTask(this.workerTasks[i])) {
+                this.taskCallback(this.workerTasks[i]);
+                this.workerTasks.splice(i, 1);
+                continue;
+            }
+            ++i;
+        }
+    }
+    /**
+     * 建筑的任务发布(目前只有spawn)
+     */
+    signTasks() {
+        for (let name in Game.spawns) {
+            let spawn = Game.spawns[name];
+            if (spawn.room.name == this.roomName) {
+                if (!spawn.memory.signed && spawn.store[RESOURCE_ENERGY] < 275) {
+                    let source;
+                    let method = TransportMethod.PICKUP;
+                    //set src
+                    if (!source) {
+                        let structure = spawn.pos.findClosestByRange(FIND_STRUCTURES, {
+                            filter: function (obj) {
+                                return (obj.structureType == STRUCTURE_CONTAINER ||
+                                    obj.structureType == STRUCTURE_STORAGE) &&
+                                    obj.store[RESOURCE_ENERGY] > 0;
                             }
                         });
-                        room.memory.draftCreepNum += 1;
+                        if (structure) {
+                            source = structure;
+                            method = TransportMethod.WITHDRAW;
+                        }
+                        else {
+                            let dropped = spawn.pos.findClosestByRange(FIND_DROPPED_RESOURCES, {
+                                filter: function (obj) {
+                                    return obj.resourceType == RESOURCE_ENERGY;
+                                }
+                            });
+                            if (dropped) {
+                                source = dropped;
+                                method = TransportMethod.PICKUP;
+                            }
+                        }
                     }
+                    let task = new transportTask('spawn' + Game.time, TaskType.TRANSPORT, 5, 1, source.id, source.pos, method, spawn.id, spawn.pos, TransportMethod.TRANSFER, RESOURCE_ENERGY, spawn.store.getFreeCapacity(RESOURCE_ENERGY) - 25);
+                    this.transportTasks.push(task);
+                    console.log(spawn.name + " signed!");
+                    spawn.memory.signed = true;
                 }
             }
         }
     }
-}
-function harvest(creep, source) {
-    if (creep.harvest(source) == ERR_NOT_IN_RANGE) {
-        creep.moveTo(source);
-    }
-}
-function transport(creep, spawn) {
-    if (creep.transfer(spawn, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-        creep.moveTo(spawn);
-    }
-}
-function upgrade(creep, controller) {
-    if (creep.upgradeController(controller) == ERR_NOT_IN_RANGE) {
-        creep.moveTo(controller);
-    }
-}
-function deleteNotExist() {
-    // Automatically delete memory of missing creeps
-    for (const name in Memory.creeps) {
-        if (!(name in Game.creeps)) {
-            Game.rooms[Memory.creeps[name].room].memory.draftCreepNum -= 1;
-            delete Memory.creeps[name];
+    /**
+     * 如果任务已完成则返回false
+     * @param task
+     */
+    scheduleTask(task) {
+        if (!task.available()) {
+            return false;
         }
+        for (let name in task.creepDict) {
+            task.work(Game.creeps[name]);
+        }
+        return true;
+    }
+    scheduleSpawnTask(task) {
+        if (!task.available()) {
+            return false;
+        }
+        task.spawnWork();
+        return true;
+    }
+    taskCallback(task) {
+        for (let name in task.creepDict) {
+            this.creepDict[name] = task.creepDict[name];
+        }
+    }
+    /**
+     * 分配成功就删去任务中心中creep的条目
+     * @param name
+     * @returns
+     */
+    allocateCreep(name) {
+        switch (this.creepDict[name].role) {
+            case CreepRole.DRONE:
+                for (let i = 0; i < this.harvestTasks.length; ++i) {
+                    if (this.harvestTasks[i].needed()) {
+                        this.harvestTasks[i].allocateCreep(name, this.creepDict[name]);
+                        Game.creeps[name].memory.task = new CreepTask(this.harvestTasks[i].id);
+                        delete this.creepDict[name];
+                        return true;
+                    }
+                }
+                break;
+            case CreepRole.TRANSPORT:
+                for (let i = 0; i < this.transportTasks.length; ++i) {
+                    this.transportTasks[i].allocateCreep(name, this.creepDict[name]);
+                    Game.creeps[name].memory.task = new CreepTask(this.transportTasks[i].id);
+                    delete this.creepDict[name];
+                    return true;
+                }
+                break;
+            case CreepRole.WORK:
+                for (let i = 0; i < this.workerTasks.length; ++i) {
+                    this.workerTasks[i].allocateCreep(name, this.creepDict[name]);
+                    Game.creeps[name].memory.task = new CreepTask(this.workerTasks[i].id);
+                    delete this.creepDict[name];
+                    return true;
+                }
+                break;
+        }
+        return false;
+    }
+    /**
+     * 内存清理
+     * @param creepName
+     * @returns
+     */
+    deleteCreep(creepName) {
+        delete this.creepDict[creepName];
+        delete Memory.creeps[creepName];
+        return true;
+    }
+    /**
+     * 解绑creep和对应任务
+     * @param creepName
+     * @returns
+     */
+    unbind(creepName) {
+        if (!Memory.creeps[creepName].task) {
+            return;
+        }
+        switch (this.creepDict[creepName].role) {
+            case CreepRole.DRONE:
+                for (let i = 0; i < this.harvestTasks.length; ++i) {
+                    this.harvestTasks[i].deleteCreep(creepName);
+                }
+                break;
+            case CreepRole.TRANSPORT:
+                for (let i = 0; i < this.transportTasks.length; ++i) {
+                    this.transportTasks[i].deleteCreep(creepName);
+                }
+                break;
+            case CreepRole.WORK:
+                for (let i = 0; i < this.workerTasks.length; ++i) {
+                    this.workerTasks[i].deleteCreep(creepName);
+                }
+                break;
+        }
+    }
+}
+
+class RareEnergyMemory {
+    constructor(pos, type, hcf, hc) {
+        //this.containerFlag = null;
+        //this.containerId = null;
+        this.hasContainer = hc;
+        this.pos = pos;
+        this.type = type;
+        this.hasContainerFlag = hcf;
+    }
+}
+
+class SourceEnergyMemory {
+    constructor(pos, am, hcf, hc) {
+        this.hasContainer = hc;
+        this.hasContainerFlag = hcf;
+        this.amount = am;
+        this.pos = pos;
+        //this.containerId = null;
+        //this.containerFlag = null;
+    }
+}
+
+class storedSource {
+    constructor() {
+        this.energy = [];
+        this.rareSource = new RareEnergyMemory(new RoomPosition(0, 0, 'W0N0'), RESOURCE_EXTRACT, false, false);
+    }
+}
+
+const constCreepNumber = {
+    drone: 2,
+    worker: 3,
+    transport: 3
+};
+/**
+ * 日常监测有无新房间归我
+ */
+function roomFresh(room) {
+    if (!room.memory.myInit && room.controller && room.controller.my) {
+        room.memory.myInit = true;
+        room.memory.neededCreeps = constCreepNumber;
+        //let taskCenter :TaskCenter = new TaskCenter(room.name,room.name);
+        let spawnId = "";
+        for (let name in Game.spawns) {
+            if (Game.spawns[name].room.name == room.name) {
+                spawnId = Game.spawns[name].id;
+            }
+        }
+        let tasks = initialCreepTask(room, spawnId);
+        global.center[room.name].spawnTasks = tasks;
+        for (let name in Game.creeps) {
+            let creep = Game.creeps[name];
+            if (creep.memory.room == room.name) {
+                global.center[room.name].addCreep(creep);
+            }
+        }
+        let upgrade = new upgradeTask(room.controller.id, TaskType.UPGRADE, 10, 1, room.controller.id, 1000000);
+        global.center[room.name].workerTasks.push(upgrade);
+        //挂载到global.center中，然后记得更新下面的center
+        //global.center[room.name] = taskCenter;
+    }
+}
+function initRoomMemory(room) {
+    if (!room.memory.initialed) {
+        room.memory.initialed = true;
+        room.memory.sources = new storedSource();
+        global.center[room.name] = new TaskCenter(room.name, room.name);
+        let mine = room.find(FIND_MINERALS);
+        let rareMine = room.find(FIND_DEPOSITS);
+        for (let i = 0; i < mine.length; ++i) {
+            let source = new SourceEnergyMemory(mine[i].pos, mine[i].density, false, false);
+            room.memory.sources.energy.push(source);
+            let tt = new harvestTask(mine[i].id, TaskType.HARVEST, 5, 1, mine[i].id);
+            //assert this center is available
+            global.center[room.name].harvestTasks.push(tt);
+        }
+        if (rareMine.length) {
+            let rareSource = new RareEnergyMemory(rareMine[0].pos, rareMine[0].depositType, false, false);
+            room.memory.sources.rareSource = rareSource;
+        }
+    }
+}
+function initialCreepTask(room, spawnId) {
+    let need = room.memory.neededCreeps;
+    let tasks = [];
+    /*
+    spawnId 在新的房间中好像不能先造spawn
+    */
+    for (let i = 0; i < need["drone"]; ++i) {
+        tasks.push(new spawnTask('drone' + i, TaskType.SPAWN, 2, 'drone' + i, [MOVE, MOVE, CARRY, WORK], 250, {
+            role: CreepRole.DRONE,
+            room: room.name,
+            createBeforeDeath: 12,
+            working: false
+        }, spawnId));
+    }
+    for (let i = 0; i < need["transport"]; ++i) {
+        tasks.push(new spawnTask('transport' + i, TaskType.SPAWN, 7, 'transport' + i, [MOVE, MOVE, CARRY, CARRY], 200, {
+            role: CreepRole.TRANSPORT,
+            room: room.name,
+            createBeforeDeath: 12,
+            working: false
+        }, spawnId));
+    }
+    for (let i = 0; i < need["worker"]; ++i) {
+        tasks.push(new spawnTask('work' + i, TaskType.SPAWN, 10, 'work' + i, [MOVE, MOVE, CARRY, CARRY, WORK], 300, {
+            role: CreepRole.WORK,
+            room: room.name,
+            createBeforeDeath: 15,
+            working: false
+        }, spawnId));
+    }
+    return tasks;
+}
+
+function memoryInit() {
+    global.center = {};
+    for (let name in Memory.creeps) {
+        delete Memory.creeps[name].task;
+    }
+    for (let name in Memory.flags) {
+        delete Memory.flags[name];
+    }
+    for (let name in Memory.rooms) {
+        delete Memory.rooms[name];
+    }
+    for (let name in Game.rooms) {
+        initRoomMemory(Game.rooms[name]);
     }
 }
 
@@ -3356,12 +3822,26 @@ class ErrorMapper {
 // Cache previously mapped traces to improve performance
 ErrorMapper.cache = {};
 
+function myLoop() {
+    for (let name in Game.rooms) {
+        let room = Game.rooms[name];
+        if (!global.center[name]) {
+            initRoomMemory(Game.rooms[name]);
+        }
+        roomFresh(Game.rooms[name]);
+        if (room.controller && room.controller.my) {
+            global.center[room.name].schedule();
+        }
+    }
+}
+
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
-draftInit();
+memoryInit();
 const loop = ErrorMapper.wrapLoop(() => {
-    console.log(`Current game tick is ${Game.time}`);
-    draftLivingFunction();
+    //console.log(`Current game tick is ${Game.time}`);
+    //draftLivingFunction();
+    myLoop();
 });
 
 exports.loop = loop;

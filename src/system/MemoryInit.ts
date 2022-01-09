@@ -1,6 +1,8 @@
 import { initRoomMemory } from "./roomMemory";
 
 export function memoryInit(){
+    global.center = {};
+
     for(let name in Memory.creeps){
         delete Memory.creeps[name].task;
     }

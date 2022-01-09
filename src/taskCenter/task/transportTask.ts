@@ -2,13 +2,16 @@
  * 要考虑无法传输进去amount或者无法取出amount怎么办
  */
 
-enum TransportMethod{
+import { Task } from "taskCenter/Task";
+import { TaskType } from "taskCenter/TaskType";
+
+export enum TransportMethod{
     WITHDRAW,
     PICKUP,
     TRANSFER
 }
 
-class transportTask extends Task{
+export class transportTask extends Task{
     private fromId:string;
     private fromPos:RoomPosition;
     private fromMethod:TransportMethod;
