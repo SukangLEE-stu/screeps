@@ -24,7 +24,8 @@ class upgradeTask extends Task{
     public work(creep:Creep):boolean {
         if(!creep.memory.working){
             //get energy
-            creep.memory.task.work(creep);
+            if(creep.memory.task)
+                creep.memory.task.work(creep);
         }else{
             let ctl:StructureController|null = Game.getObjectById(this.controllerId);
 

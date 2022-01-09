@@ -1,14 +1,14 @@
 
 class Task{
     //id is only key
-    private id:string;
+    public id:string;
 
     private taskType:TaskType;
-    private priority:number;
+    public priority:number;
 
     private needCreep:number;
     private allocatedCreep:number;
-    private creepList:{[key:string]:boolean};
+    public creepDict:{[name:string]:CreepInfo};
 
     //no need to continue
     private workDone:boolean;
@@ -27,13 +27,14 @@ class Task{
     /**
      * allocateCreep
      */
-    public allocateCreep(creep:Creep) :boolean {
+    public allocateCreep(name:string,info:CreepInfo) :boolean {
+        /*
         if(!Task.matchWork(creep,this.taskType)){
             return false;
-        }
+        }*/
 
         this.allocatedCreep += 1;
-        this.creepList[creep.name] = true;
+        this.creepDict[name] = info;
         /**
          * need to add memory to creep?
          */
@@ -45,7 +46,7 @@ class Task{
      */
     public deleteCreep(creepName:string) : boolean {
         this.allocatedCreep -= 1;
-        delete this.creepList[creepName];
+        delete this.creepDict[creepName];
         return true;
     }
 
@@ -79,7 +80,7 @@ class Task{
         this.priority = priority;
         this.needCreep = needCreep;
         this.allocatedCreep = 0;
-        this.creepList = {};
+        this.creepDict = {};
         this.workDone = false;
         this.working = false;
     }

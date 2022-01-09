@@ -93,12 +93,11 @@ function spawnWork(){
                     if(spawn.store[RESOURCE_ENERGY]>=250){
                         spawn.spawnCreep([MOVE,MOVE,CARRY,WORK],"worker"+Game.time,{
                             memory:{
-                                role:"worker",
+                                role:CreepRole.WORK,
                                 room:room.name,
                                 createBeforeDeath:12,
                                 working:false,
-                                draftFull:false,
-                                task:new CreepTask()
+                                draftFull:false
                             }
                         });
                         room.memory.draftCreepNum +=1;

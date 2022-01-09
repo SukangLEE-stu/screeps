@@ -1,7 +1,7 @@
 
 class CreepTask{
     //id is the only key
-    //private id:string;
+    public id:string;
 
     /**
      * work
@@ -10,8 +10,8 @@ class CreepTask{
         return true;
     }
 
-    constructor(){
-        //this.id = id;
+    constructor(id:string){
+        this.id = id;
     }
 
 }

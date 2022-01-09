@@ -23,4 +23,8 @@ class harvestTask extends Task{
         return true;
     }
 
+    public available(): boolean {
+        return true;
+    }
+
 }

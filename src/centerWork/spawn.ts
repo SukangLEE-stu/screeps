@@ -1,4 +1,4 @@
-
+/**
 export function spawnWork(spawn:StructureSpawn){
     if(spawn.spawning){
         return;
@@ -22,3 +22,4 @@ export function calculate(body:BodyPartConstant[]):number{
     }
     return sum;
 }
+*/

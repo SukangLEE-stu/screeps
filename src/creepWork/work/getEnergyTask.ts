@@ -4,7 +4,7 @@ class getEnergyTask extends CreepTask{
     private method:TransportMethod;
 
     constructor(){
-        super();
+        super('getEnergy'+Game.time);
         this.sourceId = "";
         this.method = TransportMethod.PICKUP;
     }

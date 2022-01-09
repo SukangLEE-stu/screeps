@@ -21,11 +21,11 @@ declare global {
     draftFull?:boolean;
     draftSource?:string;
 
-    role: string;
+    role: CreepRole;
     room: string;
     createBeforeDeath:number;
     working: boolean;
-    task: CreepTask;
+    task?: CreepTask;
   }
 
   interface RoomMemory{
@@ -53,7 +53,7 @@ declare global {
   }
 
   interface SpawnMemory{
-
+    signed:boolean;
   }
 
   /*
@@ -62,12 +62,6 @@ declare global {
 
   }*/
 
-  interface spawnTask{
-    name:string;
-    body:BodyPartConstant[];
-    cost:number;
-    creepMemory:CreepMemory;
-  }
 
   interface SourceEnergyMemory{
     pos:RoomPosition;
