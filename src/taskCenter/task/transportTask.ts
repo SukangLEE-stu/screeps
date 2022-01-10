@@ -20,13 +20,15 @@ export class transportTask extends Task{
     private targetPos:RoomPosition;
     private targetMethod:TransportMethod;
 
-    private sourceType:string;
+    private sourceType:ResourceConstant;
     private amount:number;
+
+    private fromExist:boolean;
 
     constructor(id:string,type:TaskType,priority:number,needCreep:number ,
         fromId:string, fromPos:RoomPosition, fromMethod:TransportMethod,
         tarID:string, tarPos:RoomPosition, targetMetgod:TransportMethod,
-        srctype:string,amount:number){
+        srctype:ResourceConstant,amount:number){
         super(id,type,priority,needCreep);
         this.fromId = fromId;
         this.fromPos = fromPos;
@@ -36,12 +38,63 @@ export class transportTask extends Task{
         this.targetMethod = targetMetgod;
         this.sourceType = srctype;
         this.amount = amount;
+        this.fromExist = true;
     }
 
     /**
      * available
      */
     public available(): boolean {
-        return this.amount > 0;
+        return this.fromExist && this.amount > 0 ;
+    }
+
+    public work(creep: Creep): boolean {
+        if(!creep){
+            return false;
+        }
+        if(!creep.memory.transportGET){
+            let obj:any = Game.getObjectById(this.fromId);
+            if(!obj){
+                this.fromExist = false;
+                return false;
+            }
+            switch(this.fromMethod){
+                case TransportMethod.PICKUP:
+                    if(creep.pickup(obj) == ERR_NOT_IN_RANGE){
+                        creep.moveTo(obj);
+                    }else{
+                        creep.memory.transportGET = true;
+                    }
+                    break;
+                case TransportMethod.WITHDRAW:
+                    if(creep.withdraw(obj,this.sourceType,this.amount) == ERR_NOT_IN_RANGE){
+                        creep.moveTo(obj);
+                    }else{
+                        creep.memory.transportGET = true;
+                    }
+                    break;
+                default:break;
+            }
+        }else{
+            let obj:any = Game.getObjectById(this.targetId);
+            if(!obj){
+                this.fromExist = false;
+                return false;
+            }
+            let t:number = creep.store[this.sourceType];
+            switch(this.targetMethod){
+                case TransportMethod.TRANSFER:
+
+                    if(creep.transfer(obj,this.sourceType,t) == ERR_NOT_IN_RANGE){
+                        creep.moveTo(obj);
+                    }else{
+                        this.amount -= t;
+                        creep.memory.transportGET = false;
+                    }
+                    break;
+                default:break;
+            }
+        }
+        return true;
     }
 }

@@ -47,9 +47,12 @@ export class Task{
      * deleteCreep
      */
     public deleteCreep(creepName:string) : boolean {
-        this.allocatedCreep -= 1;
-        delete this.creepDict[creepName];
-        return true;
+        if(this.creepDict[creepName]){
+            this.allocatedCreep -= 1;
+            delete this.creepDict[creepName];
+            return true;
+        }
+        return false;
     }
 
     /**

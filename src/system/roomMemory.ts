@@ -27,8 +27,11 @@ export function roomFresh(room:Room){
 
         let spawnId:string = "";
         for(let name in Game.spawns){
+            //test
+            console.log(Game.spawns[name].room.name+"    "+room.name);
             if(Game.spawns[name].room.name == room.name){
                 spawnId = Game.spawns[name].id;
+                console.log(spawnId+" got ID!!!!!!!!");
             }
         }
 
@@ -36,15 +39,9 @@ export function roomFresh(room:Room){
 
         global.center[room.name].spawnTasks = tasks;
 
-        for(let name in Game.creeps){
-            let creep:Creep = Game.creeps[name];
-            if(creep.memory.room == room.name){
-                global.center[room.name].addCreep(creep);
-            }
-        }
 
         let upgrade = new upgradeTask(room.controller.id,TaskType.UPGRADE,10,1,room.controller.id,1000000);
-
+        global.tasks[room.controller.id] = TaskType.UPGRADE;
         global.center[room.name].workerTasks.push(upgrade);
 
         //挂载到global.center中，然后记得更新下面的center
@@ -60,18 +57,19 @@ export function initRoomMemory(room:Room){
 
         global.center[room.name] = new TaskCenter(room.name,room.name);
 
-        let mine = room.find(FIND_MINERALS);
-        let rareMine = room.find(FIND_DEPOSITS);
+        let mine = room.find(FIND_SOURCES);
+        let rareMine = room.find(FIND_MINERALS);
         for(let i = 0;i<mine.length;++i){
-            let source:SourceEnergyMemory = new SourceEnergyMemory(mine[i].pos,mine[i].density,false,false);
+            let source:SourceEnergyMemory = new SourceEnergyMemory(mine[i].pos,mine[i].energyCapacity,false,false);
             room.memory.sources.energy.push(source);
             let tt:Task = new harvestTask(mine[i].id,TaskType.HARVEST,5,1,mine[i].id);
             //assert this center is available
             global.center[room.name].harvestTasks.push(tt);
         }
+
         if(rareMine.length){
             let rareSource : RareEnergyMemory = new RareEnergyMemory(rareMine[0].pos,
-                rareMine[0].depositType,
+                rareMine[0].mineralType,
                 false,
                 false
             );
@@ -84,7 +82,7 @@ export function initRoomMemory(room:Room){
 function initialCreepTask(room:Room,spawnId:string):spawnTask[]{
     let need:needCreepType = room.memory.neededCreeps;
     let tasks:spawnTask[] = [];
-
+    console.log(spawnId + "in initTask");
     /*
     spawnId 在新的房间中好像不能先造spawn
     */

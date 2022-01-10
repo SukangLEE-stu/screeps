@@ -20,7 +20,7 @@ class TaskCenter{
 
     public spawnTasks:spawnTask[];
     public harvestTasks:Task[];
-    private transportTasks:Task[];
+    public transportTasks:Task[];
     public workerTasks:Task[];
     private roomName:string;
 
@@ -40,7 +40,6 @@ class TaskCenter{
      * schedule
      */
     public schedule() {
-        this.updateCreeps();
 
         this.scheduleCreeps();
 
@@ -54,20 +53,19 @@ class TaskCenter{
     /**
      * addCreep(新出生的)
      */
-    public addCreep(creep:Creep):boolean {
-        this.creepDict[creep.name] = new CreepInfo(creep.memory.role);
+    public addCreep(name:string,role:CreepRole):boolean {
+        this.creepDict[name] = new CreepInfo(role);
         return true;
     }
 
     /**
      * 更新去世的creep
      */
-    private updateCreeps() {
-        for(let name in this.creepDict){
+    public static updateCreeps() {
+        //console.log('update begin!')
+        for(let name in Memory.creeps){//我是牛马
             if(!Game.creeps[name]){
-                this.unbind(name);
-
-                this.deleteCreep(name);
+                TaskCenter.deleteCreep(name);
             }
         }
     }
@@ -88,11 +86,12 @@ class TaskCenter{
         for(let i = 0;i<this.spawnTasks.length;){
             if(!this.scheduleSpawnTask(this.spawnTasks[i])){
                 //this.taskCallback(this.spawnTasks[i]);
-                this.workerTasks.splice(i,1);
+                this.spawnTasks.splice(i,1);
                 continue;
             }
             ++i;
         }
+        //this.unLock();
 
         for(let i = 0;i<this.harvestTasks.length;){
             if(!this.scheduleTask(this.harvestTasks[i])){
@@ -127,7 +126,8 @@ class TaskCenter{
         for(let name in Game.spawns){
             let spawn:StructureSpawn = Game.spawns[name];
             if(spawn.room.name == this.roomName){
-                if(!spawn.memory.signed && spawn.store[RESOURCE_ENERGY]<275){
+                //!spawn.memory.signed
+                if(Game.time % 10 == 0 && spawn.store[RESOURCE_ENERGY]<275){
                     let source : any;
                     let method : TransportMethod = TransportMethod.PICKUP;
                     //set src
@@ -154,16 +154,23 @@ class TaskCenter{
                             }
                         }
                     }
-                    let task:transportTask = new transportTask('spawn'+Game.time,TaskType.TRANSPORT,5,
+                    let taskId = spawn.room.name+'spawn'+Game.time;
+                    let task:transportTask = new transportTask(taskId,TaskType.TRANSPORT,5,
                     1,source.id,source.pos,method,spawn.id,spawn.pos,TransportMethod.TRANSFER,RESOURCE_ENERGY,
                     spawn.store.getFreeCapacity(RESOURCE_ENERGY)-25);
-
+                    //登记任务
+                    global.tasks[taskId] = TaskType.TRANSPORT;
                     this.transportTasks.push(task);
                     console.log(spawn.name+" signed!");
                     spawn.memory.signed = true;
                 }
             }
         }
+    }
+
+    /** */
+    public static unLock() {
+        global.locks = {};
     }
 
     /**
@@ -189,6 +196,8 @@ class TaskCenter{
     }
 
     private taskCallback(task:Task) {
+        delete global.tasks[task.id];
+
         for(let name in task.creepDict){
             this.creepDict[name] = task.creepDict[name];
         }
@@ -214,19 +223,23 @@ class TaskCenter{
 
             case CreepRole.TRANSPORT:
                 for(let i = 0;i<this.transportTasks.length;++i){
-                    this.transportTasks[i].allocateCreep(name,this.creepDict[name]);
-                    Game.creeps[name].memory.task = new CreepTask(this.transportTasks[i].id);
-                    delete this.creepDict[name];
-                    return true;
+                    if(this.transportTasks[i].needed()){
+                        this.transportTasks[i].allocateCreep(name,this.creepDict[name]);
+                        Game.creeps[name].memory.task = new CreepTask(this.transportTasks[i].id);
+                        delete this.creepDict[name];
+                        return true;
+                    }
                 }
                 break;
 
             case CreepRole.WORK:
                 for(let i = 0;i<this.workerTasks.length;++i){
-                    this.workerTasks[i].allocateCreep(name,this.creepDict[name]);
-                    Game.creeps[name].memory.task = new CreepTask(this.workerTasks[i].id);
-                    delete this.creepDict[name];
-                    return true;
+                    if(this.workerTasks[i].needed()){
+                        this.workerTasks[i].allocateCreep(name,this.creepDict[name]);
+                        Game.creeps[name].memory.task = new CreepTask(this.workerTasks[i].id);
+                        delete this.creepDict[name];
+                        return true;
+                    }
                 }
                 break;
 
@@ -240,41 +253,46 @@ class TaskCenter{
      * @param creepName
      * @returns
      */
-    private deleteCreep(creepName:string) {
-        delete this.creepDict[creepName];
+    public static deleteCreep(creepName:string) {
+        //if at work, need to find place
+        let creepMem = Memory.creeps[creepName];
+        let roomName = null;
+        let task = null;
+        if(creepMem){
+            task = creepMem.task;
+            roomName = creepMem.room;
+        }
+        if(task){
+            if(roomName){
+                let type:TaskType = global.tasks[task.id];
+                switch(type){
+                    case TaskType.HARVEST:
+                        for(let i = 0;i<global.center[roomName].harvestTasks.length;++i){
+                            global.center[roomName].harvestTasks[i].deleteCreep(creepName);
+                        }
+                        break;
+                    case TaskType.TRANSPORT:
+                        for(let i = 0;i<global.center[roomName].transportTasks.length;++i){
+                            global.center[roomName].transportTasks[i].deleteCreep(creepName);
+                        }
+                        break;
+                    default:
+                        for(let i = 0;i<global.center[roomName].workerTasks.length;++i){
+                            global.center[roomName].workerTasks[i].deleteCreep(creepName);
+                        }
+                        break;
+                }
+            }
+        }else{
+            if(roomName){
+                delete global.center[roomName].creepDict[creepName];
+            }
+        }
+        console.log('delete creep memory ' + creepName)
         delete Memory.creeps[creepName];
+        delete global.getEnergyTask[creepName];
         return true;
     }
-
-    /**
-     * 解绑creep和对应任务
-     * @param creepName
-     * @returns
-     */
-    private unbind(creepName:string) {
-        if(!Memory.creeps[creepName].task){
-            return;
-        }
-        switch(this.creepDict[creepName].role){
-            case CreepRole.DRONE:
-                for(let i = 0;i<this.harvestTasks.length;++i){
-                    this.harvestTasks[i].deleteCreep(creepName);
-                }
-                break;
-            case CreepRole.TRANSPORT:
-                for(let i = 0;i<this.transportTasks.length;++i){
-                    this.transportTasks[i].deleteCreep(creepName);
-                }
-                break;
-            case CreepRole.WORK:
-                for(let i = 0;i<this.workerTasks.length;++i){
-                    this.workerTasks[i].deleteCreep(creepName);
-                }
-                break;
-            default:break;
-        }
-    }
-
 
 }
 

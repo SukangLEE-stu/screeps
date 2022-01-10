@@ -7,6 +7,9 @@ import { TaskCenter } from "taskCenter/TaskCenter";
 import { CreepTask } from "creepWork/CreepTask";
 import { CreepRole } from "creepWork/CreepRole";
 import { storedSource } from "system/source/sources";
+import { getEnergyTask } from "creepWork/work/getEnergyTask";
+import { TaskType } from "taskCenter/TaskType";
+import { creepSign } from "system/creepSign";
 
 declare global {
   /*
@@ -26,6 +29,8 @@ declare global {
   interface CreepMemory {
     draftFull?:boolean;
     draftSource?:string;
+
+    transportGET?:boolean;
 
     role: CreepRole;
     room: string;
@@ -74,6 +79,13 @@ declare global {
       log: any;
       center:{[name:string]:TaskCenter}
 
+      getEnergyTask:{[name:string]:getEnergyTask};
+
+      tasks:{[id:string]:TaskType};
+
+      locks:{[id:string]:boolean};
+
+      creepSign:creepSign[];
     }
   }
 }

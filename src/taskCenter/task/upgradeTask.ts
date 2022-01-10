@@ -1,5 +1,6 @@
 import { Task } from "taskCenter/Task";
 import { TaskType } from "taskCenter/TaskType";
+import { getEnergy } from "./subTask/getEnergy";
 
 export class upgradeTask extends Task{
     private controllerId:string;
@@ -25,9 +26,7 @@ export class upgradeTask extends Task{
      */
     public work(creep:Creep):boolean {
         if(!creep.memory.working){
-            //get energy
-            if(creep.memory.task)
-                creep.memory.task.work(creep);
+            getEnergy(creep);
         }else{
             let ctl:StructureController|null = Game.getObjectById(this.controllerId);
 
